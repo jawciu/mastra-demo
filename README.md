@@ -1,58 +1,42 @@
 # mastra-demo
 
-Welcome to your new [Mastra](https://mastra.ai) project! We're excited to see what you build.
+I rebuilt the agent from my own product inside [Mastra](https://mastra.ai) to see how its Studio compares with the observability and approval flow I built by hand.
 
-This starter provides you with a general-purpose Mastra agent that can research current information, manage multi-step tasks, work with local files, run approved shell commands, and create recurring schedules.
+The product is [Vector](https://vector.quest), a B2B onboarding tool I designed and built solo in TypeScript. When a customer meeting is transcribed, Vector's agent reads it and proposes task drafts: create this, update that, mark this done. Every draft waits in an inbox for a human. Vector logs each model call to its own table and shows cost, latency and failures on an admin page I designed.
 
-## Features
+This repo is the same pipeline, written the Mastra way, on Vector's demo data (all fictional).
 
-- A project-level `workspace/` for files and command execution
-- Approval gates for file changes, deletions, and shell commands
-- Conversation memory, generated thread titles, and task tracking
-- Built-in web search and direct web page fetching
-- Recurring schedules that persist across restarts
-- Local libSQL storage and DuckDB observability, with optional Turso storage
-- A bundled Mastra skill that helps coding agents use current Mastra APIs
+## What's here
 
-## Get started
+| Path | What it is |
+| --- | --- |
+| `src/mastra/vector/context.ts` | Vector's onboarding world (12 companies, tasks, phases, contacts) and the deterministic meeting matcher. No AI. |
+| `src/mastra/vector/agents.ts` | Vector's two passes as two agents: extraction (structured output) and decision (tools). Same prompts, same model. |
+| `src/mastra/vector/tools.ts` | The four draft tools, now Zod schemas. In Vector they were hand-written JSON Schema. |
+| `src/mastra/vector/workflow.ts` | `meeting-to-drafts`: build context, extract, decide. Three spans in Studio instead of one webhook handler. |
+| `src/mastra/vector/scorers.ts` | Two deterministic scorers: did every action item get a draft, and does every quoted source exist in the transcript. |
+| `src/mastra/vector/data/` | 27 meeting transcripts and the onboarding snapshot, generated from Vector's fixtures. |
+| `scripts/seed-dataset.mjs` | Seeds the 27 meetings as a dataset so experiments can run against them. |
 
-Set your `ANTHROPIC_API_KEY` in `.env` or in your environment, then run:
+The starter agent from `create-mastra` is left as it came.
 
-```shell
-npm run dev
+## Run it
+
+```bash
+cp .env.example .env        # add ANTHROPIC_API_KEY
+npm install
+npm run dev                 # Studio at http://localhost:4111
+node scripts/seed-dataset.mjs
 ```
 
-Open [http://localhost:4111](http://localhost:4111) in your browser to access [Mastra Studio](https://mastra.ai/docs/studio/overview).
+Then in Studio: Workflows, meeting-to-drafts, run with `{ "slug": "01-kickoff-modal" }`. Or Datasets, vector-meetings, Run Experiment with both scorers.
 
-Select **Agent** in Mastra Studio and try one of these prompts:
+From the terminal:
 
-- `Get the weather forecast for Austin this weekend.`
-- `Create a landing page for a Japanese sakura festival.`
-- `Check the SPCX stock price now, then check it every minute.`
+```bash
+npx mastra api workflow run start meeting-to-drafts '{"inputData":{"slug":"01-kickoff-modal"}}'
+```
 
-The agent asks for approval before it changes files or runs commands. When it creates a schedule, it returns an ID that you can use to pause the schedule.
+## What I noticed
 
-## Workspace safety
-
-The local filesystem tools stay inside the project-level `workspace/` directory. Shell commands start in that directory, but `LocalSandbox` does not provide operating-system isolation by default. Review command approvals carefully, and do not expose this template through an unauthenticated public server.
-
-## Storage
-
-The default `file:./mastra.db` database stores agent memory, tasks, and schedules locally. To use Turso, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` in `.env`.
-
-Recurring schedules continue to use model tokens until you pause them. Ask the agent to pause a schedule with the ID returned by `start_schedule`.
-
-## Making it yours
-
-- Edit `src/mastra/agents/agent.ts` to change the model, instructions, memory, workspace, or approval policy.
-- Edit `src/mastra/tools/` to customize scheduling.
-- Edit `src/mastra/index.ts` to change storage and observability.
-- Add files or reusable skills under `workspace/` for the agent to use.
-
-## Learn more
-
-To learn more about Mastra, visit our [documentation](https://mastra.ai/docs/). If you're new to AI agents, check out our [course](https://mastra.ai/learn) and [YouTube videos](https://youtube.com/@mastra-ai). You can also join our [Discord](https://discord.gg/BTYqqHKUrf) community to get help and share your projects.
-
-## Deploy to the Mastra platform
-
-The [Mastra platform](https://projects.mastra.ai) provides two products for deploying and managing AI applications built with the Mastra framework. Learn more in the [Mastra platform documentation](https://mastra.ai/docs/mastra-platform/overview).
+Written up separately as part of a job application. Short version: the framework is good and the types earn their keep. Studio needs a designer, which is the job.

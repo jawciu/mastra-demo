@@ -10,12 +10,17 @@ import {
 } from '@mastra/observability';
 import { agent } from './agents/agent';
 import { startScheduleTool, stopScheduleTool } from './tools/schedule-tools';
+import { vectorExtractor, vectorOrchestrator } from './vector/agents';
+import { meetingToDrafts } from './vector/workflow';
+import { draftCoverage, quoteFaithfulness } from './vector/scorers';
 
 export const mastra = new Mastra({
   bundler: {
     externals: ['@duckdb/node-bindings'],
   },
-  agents: { agent },
+  agents: { agent, vectorExtractor, vectorOrchestrator },
+  workflows: { meetingToDrafts },
+  scorers: { draftCoverage, quoteFaithfulness },
   tools: { startScheduleTool, stopScheduleTool },
   storage: new MastraCompositeStore({
     id: 'composite-storage',
