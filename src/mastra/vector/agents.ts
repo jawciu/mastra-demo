@@ -12,6 +12,12 @@ export const MODEL = 'anthropic/claude-sonnet-4-6';
 const GLOBAL_RULES = `GLOBAL RULES, apply to all output:
 - Never use em dashes or en dashes. Use commas, periods, parentheses, or "and" instead.`;
 
+
+/** Same as Vector's `cache_control: ephemeral` on the system prompt: pay for the prefix once, then read it from cache. */
+const cached = (text: string) => [
+  { role: 'system' as const, content: text, providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } } },
+];
+
 export const ExtractionSchema = z.object({
   actionItems: z.array(
     z.object({
@@ -37,7 +43,7 @@ export const vectorExtractor = new Agent({
   description: 'Reads a B2B onboarding meeting and extracts every commitment as verbatim facts. Makes no decisions.',
   model: MODEL,
   defaultOptions: { modelSettings: { temperature: 0.2 } },
-  instructions: `You are Vector. Your job is FACT EXTRACTION from a B2B onboarding meeting (transcribed by Miniti). You do NOT decide what to do with the facts; another step takes care of that. Just find them faithfully.
+  instructions: cached(`You are Vector. Your job is FACT EXTRACTION from a B2B onboarding meeting (transcribed by Miniti). You do NOT decide what to do with the facts; another step takes care of that. Just find them faithfully.
 
 You will receive a JSON context with:
 - meeting.title, meeting.date, meeting.summary, meeting.notes
@@ -55,7 +61,7 @@ Rules:
 4. If meeting.actionItems already lists an item that you find in the transcript too, surface it once with the most informative sourceQuote.
 5. If the meeting has zero firm commitments (e.g. casual catch-up), return actionItems: [] and let meetingTone tell the story.
 
-${GLOBAL_RULES}`,
+${GLOBAL_RULES}`),
 });
 
 export const vectorOrchestrator = new Agent({
@@ -65,7 +71,7 @@ export const vectorOrchestrator = new Agent({
   model: MODEL,
   defaultOptions: { modelSettings: { temperature: 0.2 } },
   tools: vectorTools,
-  instructions: `You are Vector. You take pre-extracted facts from a B2B onboarding meeting (Pass 1) and decide what to do with them: match to existing tasks, create new ones, mark completions, or flag none. Another reviewer will approve every tool call before anything writes to the database.
+  instructions: cached(`You are Vector. You take pre-extracted facts from a B2B onboarding meeting (Pass 1) and decide what to do with them: match to existing tasks, create new ones, mark completions, or flag none. Another reviewer will approve every tool call before anything writes to the database.
 
 You will receive a JSON context with meeting, extraction (Pass 1's findings), openTasks (id, taskId like "AC-12", title, status, phaseId, due, assigneeContactId, description, notes, blockedByTaskId), customerContacts [{id,name,email}], vendorUsers [{id,name,email}] (Vector's team), phases [{id,name,isComplete}] and today.
 
@@ -91,5 +97,5 @@ Rules, non-negotiable:
 
 Emit all tool calls, then reply with one short line summarising what you proposed.
 
-${GLOBAL_RULES}`,
+${GLOBAL_RULES}`),
 });
